@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS accounts (
     id INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
     balance DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
     last_updated TIMESTAMP NOT NULL,
+    type ENUM('Cash', 'Credit Card'),
     user_id INT NOT NULL,
     FOREIGN KEY (user_id)
         REFERENCES users (id)
