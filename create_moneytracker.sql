@@ -26,7 +26,8 @@ DROP TABLE IF EXISTS accounts;
 CREATE TABLE IF NOT EXISTS accounts (
     id INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
     balance DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
-    last_updated TIMESTAMP NOT NULL,
+    last_updated TIMESTAMP NOT NULL
+        DEFAULT CURRENT_TIMESTAMP,
     type ENUM('Cash', 'Credit Card') NOT NULL,
     user_id INT NOT NULL,
     FOREIGN KEY (user_id)
@@ -47,7 +48,7 @@ CREATE TABLE IF NOT EXISTS transactions(
     id INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
     amount DECIMAL(10, 2) NOT NULL,
         CONSTRAINT check_amount_positive CHECK (amount > 0),
-    description TEXT,
+    description VARCHAR(255),
     transaction_date DATE NOT NULL,
     category_id INT NOT NULL,
     account_id INT NOT NULL,
