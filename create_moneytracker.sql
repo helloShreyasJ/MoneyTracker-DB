@@ -25,7 +25,7 @@ DROP TABLE IF EXISTS accounts;
 
 CREATE TABLE IF NOT EXISTS accounts (
     id INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
-    balance DOUBLE(7, 2) NOT NULL,
+    balance DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
     last_updated DATE NOT NULL,
     user_id INT NOT NULL,
     FOREIGN KEY (user_id)
