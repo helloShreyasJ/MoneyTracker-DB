@@ -40,3 +40,19 @@ CREATE TABLE IF NOT EXISTS categories(
     name VARCHAR(50) UNIQUE NOT NULL,
     category_type ENUM ('Expense', 'Income') NOT NULL
 );
+
+DROP TABLE IF EXISTS transactions;
+
+CREATE TABLE IF NOT EXISTS transactions(
+    id INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
+    amount DECIMAL(10, 2) NOT NULL,
+        CONSTRAINT check_amount_positive CHECK (amount > 0),
+    description TEXT,
+    transaction_date DATE NOT NULL,
+    category_id INT NOT NULL,
+    account_id INT NOT NULL,
+    FOREIGN KEY (account_id)
+        REFERENCES accounts (id),
+    FOREIGN KEY (category_id)
+        REFERENCES categories (id)
+);
