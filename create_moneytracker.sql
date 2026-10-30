@@ -37,6 +37,6 @@ DROP TABLE IF EXISTS categories;
 
 CREATE TABLE IF NOT EXISTS categories(
     id INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
-    name VARCHAR(50) NOT NULL,
+    name VARCHAR(50) UNIQUE NOT NULL,
     category_type ENUM ('Expense', 'Income') NOT NULL
 );
