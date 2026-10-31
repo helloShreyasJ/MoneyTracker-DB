@@ -18,7 +18,7 @@ set auto_increment_increment=1;
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
     name VARCHAR(50) NOT NULL,
-    password VARCHAR(225) NOT NULL
+    password VARCHAR(255) NOT NULL
 );
 
 DROP TABLE IF EXISTS accounts;
@@ -53,8 +53,19 @@ CREATE TABLE IF NOT EXISTS transactions(
     transaction_date DATE NOT NULL,
     category_id INT NOT NULL,
     account_id INT NOT NULL,
-    FOREIGN KEY (account_id)
-        REFERENCES accounts (id),
-    FOREIGN KEY (category_id)
-        REFERENCES categories (id)
+        FOREIGN KEY (account_id)
+            REFERENCES accounts (id),
+        FOREIGN KEY (category_id)
+            REFERENCES categories (id)
 );
+
+DELIMITER //
+
+CREATE TRIGGER accounts_before_update
+BEFORE UPDATE ON accounts
+FOR EACH ROW
+BEGIN
+	SET NEW.last_updated = CURRENT_TIMESTAMP;
+END //
+
+DELIMITER ;
