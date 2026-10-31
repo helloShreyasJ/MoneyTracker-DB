@@ -69,3 +69,17 @@ BEGIN
 END //
 
 DELIMITER ;
+
+DELIMITER //
+
+CREATE TRIGGER transaction_before_insert
+BEFORE INSERT ON transactions
+FOR EACH ROW
+BEGIN
+	IF NEW.transaction_date > CURDATE() THEN
+		SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Transaction date cannot be in the future';
+	END IF;
+END //
+
+DELIMITER ;
