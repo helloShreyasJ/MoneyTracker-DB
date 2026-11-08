@@ -83,3 +83,29 @@ BEGIN
 END //
 
 DELIMITER ;
+
+
+DROP PROCEDURE IF EXISTS sp_add_user;
+
+DELIMITER //
+
+CREATE PROCEDURE sp_add_user(
+    IN  p_name     VARCHAR(50),
+    IN  p_password VARCHAR(255),
+    OUT p_new_id   INT
+)
+BEGIN
+    INSERT INTO users (name, password)
+    VALUES (p_name, p_password);
+
+    SET p_new_id = LAST_INSERT_ID();
+
+    INSERT INTO accounts (user_id, name, type)
+    VALUES (p_new_id, 'Wallet', 'Cash');
+END //
+
+DELIMITER ;
+
+SHOW triggers;
+SHOW PROCEDURE STATUS WHERE Db = 'MoneyTracker';
+SHOW FUNCTION STATUS WHERE Db = 'MoneyTracker';
