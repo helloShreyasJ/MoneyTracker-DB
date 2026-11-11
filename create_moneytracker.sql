@@ -1,4 +1,4 @@
-SET default_storage_engine = InnoDB; -- default storage engine InnoDB to 
+SET default_storage_engine = InnoDB;
 
 DROP DATABASE IF EXISTS MoneyTracker;
 
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS accounts (
     balance DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
     last_updated TIMESTAMP NOT NULL
         DEFAULT CURRENT_TIMESTAMP,
-    type ENUM('Cash', 'Credit Card') NOT NULL,
+    type ENUM('Cash', 'Credit Card', 'Savings') NOT NULL,
     user_id INT NOT NULL,
     FOREIGN KEY (user_id)
         REFERENCES users (id)
@@ -59,19 +59,31 @@ CREATE TABLE IF NOT EXISTS transactions(
             REFERENCES categories (id)
 );
 
+-- after insert transaction: update balance, update last_updated field 
 DELIMITER //
-
-CREATE TRIGGER accounts_before_update
-BEFORE UPDATE ON accounts
+CREATE TRIGGER transaction_after_insert
+AFTER INSERT ON transactions
 FOR EACH ROW
 BEGIN
-	SET NEW.last_updated = CURRENT_TIMESTAMP;
-END //
+	DECLARE lv_cat_type VARCHAR(10);
 
+	SELECT category_type INTO lv_cat_type
+    FROM categories
+    WHERE category_id = NEW.category_id;
+	
+	UPDATE accounts
+	SET balance = CASE
+		WHEN lv_cat_type = 'Income' THEN balance + NEW.amount
+		WHEN lv_cat_type = 'Expense' THEN balance - NEW.amount
+		ELSE balance
+	END,
+	last_updated = NOW()
+	WHERE account_id = NEW.account_id;
+END //
 DELIMITER ;
 
+-- before insert transaction: verify transaction
 DELIMITER //
-
 CREATE TRIGGER transaction_before_insert
 BEFORE INSERT ON transactions
 FOR EACH ROW
@@ -80,15 +92,14 @@ BEGIN
 		SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT = 'Transaction date cannot be in the future';
 	END IF;
+	
 END //
-
 DELIMITER ;
 
 
-DROP PROCEDURE IF EXISTS sp_add_user;
+-- TODO: after delete transaction rollback impact on account
 
 DELIMITER //
-
 CREATE PROCEDURE sp_add_user(
     IN  p_name     VARCHAR(50),
     IN  p_password VARCHAR(255),
@@ -103,9 +114,12 @@ BEGIN
     INSERT INTO accounts (user_id, name, type)
     VALUES (p_new_id, 'Wallet', 'Cash');
 END //
-
 DELIMITER ;
 
+
+DROP TRIGGER transaction_after_insert;
+
+-- Testing
 SHOW triggers;
-SHOW PROCEDURE STATUS WHERE Db = 'MoneyTracker';
-SHOW FUNCTION STATUS WHERE Db = 'MoneyTracker';
+-- SHOW PROCEDURE STATUS WHERE Db = 'MoneyTracker';
+-- SHOW FUNCTION STATUS WHERE Db = 'MoneyTracker';
