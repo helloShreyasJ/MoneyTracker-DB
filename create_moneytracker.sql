@@ -59,6 +59,20 @@ CREATE TABLE IF NOT EXISTS transactions(
             REFERENCES categories (id)
 );
 
+-- before insert transaction: verify transaction
+DELIMITER //
+CREATE TRIGGER transaction_before_insert
+BEFORE INSERT ON transactions
+FOR EACH ROW
+BEGIN
+	IF NEW.transaction_date > CURDATE() THEN
+		SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Transaction date cannot be in the future';
+	END IF;
+	
+END //
+DELIMITER ;
+
 -- after insert transaction: update balance, update last_updated field 
 DELIMITER //
 CREATE TRIGGER transaction_after_insert
@@ -82,22 +96,30 @@ BEGIN
 END //
 DELIMITER ;
 
--- before insert transaction: verify transaction
+
+-- after delete transaction rollback impact on account
 DELIMITER //
-CREATE TRIGGER transaction_before_insert
-BEFORE INSERT ON transactions
+CREATE TRIGGER transaction_after_delete
+AFTER DELETE ON transactions
 FOR EACH ROW
 BEGIN
-	IF NEW.transaction_date > CURDATE() THEN
-		SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Transaction date cannot be in the future';
-	END IF;
-	
+    DECLARE lv_cat_type VARCHAR(10);
+
+    SELECT category_type INTO lv_cat_type
+    FROM categories
+    WHERE category_id = OLD.category_id;
+
+    UPDATE accounts
+    SET balance = CASE
+          WHEN lv_cat_type = 'income'  THEN balance - OLD.amount
+          WHEN lv_cat_type = 'expense' THEN balance + OLD.amount
+          ELSE balance
+      END,
+        last_updated = NOW()
+    WHERE account_id = OLD.account_id;
 END //
 DELIMITER ;
 
-
--- TODO: after delete transaction rollback impact on account
 
 DELIMITER //
 CREATE PROCEDURE sp_add_user(
