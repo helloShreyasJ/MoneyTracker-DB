@@ -120,28 +120,43 @@ BEGIN
 END //
 DELIMITER ;
 
-
+-- sp_get_transaction_between: get transactions between range of 2 dates
 DELIMITER //
-CREATE PROCEDURE sp_add_user(
-    IN  p_name     VARCHAR(50),
-    IN  p_password VARCHAR(255),
-    OUT p_new_id   INT
+CREATE PROCEDURE sp_get_transaction_between(
+	IN p_start_date DATE,
+	IN p_end_date DATE,
+	IN p_account_id INT
 )
 BEGIN
-    INSERT INTO users (name, password)
-    VALUES (p_name, p_password);
+	 IF p_start_date IS NULL OR p_end_date IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Start and end dates are required';
+    END IF;
 
-    SET p_new_id = LAST_INSERT_ID();
-
-    INSERT INTO accounts (user_id, name, type)
-    VALUES (p_new_id, 'Wallet', 'Cash');
-END //
+    IF p_start_date > p_end_date THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Start date cannot be after end date';
+    END IF;
+    
+    SELECT t.transaction_id,
+           t.account_id,
+           t.transaction_date,
+           c.category_type,
+           t.amount,
+           CASE c.category_type
+               WHEN 'income'  THEN  t.amount
+               WHEN 'expense' THEN -t.amount
+               ELSE 0
+           END AS signed_amount
+    FROM transactions t
+    JOIN categories c ON c.category_id = t.category_id
+    WHERE t.transaction_date BETWEEN p_start_date AND p_end_date
+      AND (p_account_id IS NULL OR t.account_id = p_account_id)
+    ORDER BY t.transaction_date, t.transaction_id;
+END
 DELIMITER ;
 
-
-DROP TRIGGER transaction_after_insert;
-
 -- Testing
-SHOW triggers;
+-- SHOW triggers;
 -- SHOW PROCEDURE STATUS WHERE Db = 'MoneyTracker';
 -- SHOW FUNCTION STATUS WHERE Db = 'MoneyTracker';
