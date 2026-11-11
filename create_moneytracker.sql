@@ -69,7 +69,11 @@ BEGIN
 		SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT = 'Transaction date cannot be in the future';
 	END IF;
-	
+
+	IF NEW.amount IS NULL OR NEW.amount <= 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Transaction amount must be greater than zero';
+    END IF;
 END //
 DELIMITER ;
 
