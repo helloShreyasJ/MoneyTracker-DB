@@ -87,7 +87,7 @@ BEGIN
 
 	SELECT category_type INTO lv_cat_type
     FROM categories
-    WHERE category_id = NEW.category_id;
+    WHERE id = NEW.category_id;
 	
 	UPDATE accounts
 	SET balance = CASE
@@ -96,7 +96,7 @@ BEGIN
 		ELSE balance
 	END,
 	last_updated = NOW()
-	WHERE account_id = NEW.account_id;
+	WHERE id = NEW.account_id;
 END //
 DELIMITER ;
 
@@ -111,7 +111,7 @@ BEGIN
 
     SELECT category_type INTO lv_cat_type
     FROM categories
-    WHERE category_id = OLD.category_id;
+    WHERE id = OLD.category_id;
 
     UPDATE accounts
     SET balance = CASE
@@ -120,7 +120,7 @@ BEGIN
           ELSE balance
       END,
         last_updated = NOW()
-    WHERE account_id = OLD.account_id;
+    WHERE id = OLD.account_id;
 END //
 DELIMITER ;
 
@@ -160,7 +160,37 @@ BEGIN
 END
 DELIMITER ;
 
+-- sp_get_transactions_on_date()
+DELIMITER //
+CREATE PROCEDURE sp_get_transactions_on_date (
+    IN p_date       DATE,
+    IN p_account_id INT
+)
+BEGIN
+    IF p_date IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Date is required';
+    END IF;
+
+    SELECT t.transaction_id,
+           t.account_id,
+           t.transaction_date,
+           c.category_type,
+           t.amount,
+           CASE c.category_type
+               WHEN 'income'  THEN  t.amount
+               WHEN 'expense' THEN -t.amount
+               ELSE 0
+           END AS signed_amount
+    FROM transactions t
+    JOIN categories c ON c.category_id = t.category_id
+    WHERE DATE(t.transaction_date) = p_date
+      AND (p_account_id IS NULL OR t.account_id = p_account_id)
+    ORDER BY t.transaction_id;
+END //
+DELIMITER ;
+
 -- Testing
--- SHOW triggers;
+SHOW triggers;
 -- SHOW PROCEDURE STATUS WHERE Db = 'MoneyTracker';
 -- SHOW FUNCTION STATUS WHERE Db = 'MoneyTracker';
