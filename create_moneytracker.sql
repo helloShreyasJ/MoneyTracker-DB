@@ -115,8 +115,8 @@ BEGIN
 
     UPDATE accounts
     SET balance = CASE
-          WHEN lv_cat_type = 'income'  THEN balance - OLD.amount
-          WHEN lv_cat_type = 'expense' THEN balance + OLD.amount
+          WHEN lv_cat_type = 'Income'  THEN balance - OLD.amount
+          WHEN lv_cat_type = 'Expense' THEN balance + OLD.amount
           ELSE balance
       END,
         last_updated = NOW()
@@ -127,12 +127,12 @@ DELIMITER ;
 -- sp_get_transaction_between: get transactions between range of 2 dates
 DELIMITER //
 CREATE PROCEDURE sp_get_transaction_between(
-	IN p_start_date DATE,
-	IN p_end_date DATE,
-	IN p_account_id INT
+    IN p_start_date DATE,
+    IN p_end_date   DATE,
+    IN p_account_id INT
 )
 BEGIN
-	 IF p_start_date IS NULL OR p_end_date IS NULL THEN
+    IF p_start_date IS NULL OR p_end_date IS NULL THEN
         SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT = 'Start and end dates are required';
     END IF;
@@ -141,23 +141,23 @@ BEGIN
         SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT = 'Start date cannot be after end date';
     END IF;
-    
-    SELECT t.transaction_id,
+
+    SELECT t.id AS transaction_id,
            t.account_id,
            t.transaction_date,
            c.category_type,
            t.amount,
            CASE c.category_type
-               WHEN 'income'  THEN  t.amount
-               WHEN 'expense' THEN -t.amount
+               WHEN 'Income'  THEN  t.amount
+               WHEN 'Expense' THEN -t.amount
                ELSE 0
            END AS signed_amount
     FROM transactions t
-    JOIN categories c ON c.category_id = t.category_id
+    JOIN categories c ON c.id = t.category_id
     WHERE t.transaction_date BETWEEN p_start_date AND p_end_date
       AND (p_account_id IS NULL OR t.account_id = p_account_id)
-    ORDER BY t.transaction_date, t.transaction_id;
-END
+    ORDER BY t.transaction_date, t.id;
+END //
 DELIMITER ;
 
 -- sp_get_transactions_on_date()
@@ -183,10 +183,10 @@ BEGIN
                ELSE 0
            END AS signed_amount
     FROM transactions t
-    JOIN categories c ON c.category_id = t.category_id
+    JOIN categories c ON c.id = t.category_id
     WHERE DATE(t.transaction_date) = p_date
-      AND (p_account_id IS NULL OR t.account_id = p_account_id)
-    ORDER BY t.transaction_id;
+   	AND (p_account_id IS NULL OR t.account_id = p_account_id)
+    ORDER BY t.id;
 END //
 DELIMITER ;
 
