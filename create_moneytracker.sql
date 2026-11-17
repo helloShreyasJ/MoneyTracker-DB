@@ -48,7 +48,6 @@ DROP TABLE IF EXISTS transactions;
 CREATE TABLE IF NOT EXISTS transactions(
     id INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
     amount DECIMAL(10, 2) NOT NULL,
-        CONSTRAINT check_amount_positive CHECK (amount > 0),
     description VARCHAR(255),
     transaction_date DATE NOT NULL,
     category_id INT NOT NULL,
@@ -172,19 +171,19 @@ BEGIN
             SET MESSAGE_TEXT = 'Date is required';
     END IF;
 
-    SELECT t.transaction_id,
+    SELECT t.id,
            t.account_id,
            t.transaction_date,
            c.category_type,
            t.amount,
            CASE c.category_type
-               WHEN 'income'  THEN  t.amount
-               WHEN 'expense' THEN -t.amount
+               WHEN 'Income'  THEN  t.amount
+               WHEN 'Expense' THEN -t.amount
                ELSE 0
            END AS signed_amount
     FROM transactions t
     JOIN categories c ON c.id = t.category_id
-    WHERE DATE(t.transaction_date) = p_date
+    WHERE t.transaction_date = p_date
    	AND (p_account_id IS NULL OR t.account_id = p_account_id)
     ORDER BY t.id;
 END //
