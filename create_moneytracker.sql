@@ -82,7 +82,7 @@ BEGIN
 
 	IF NEW.amount <= 0 THEN
         SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Transaction amount must be greater than zero';
+			SET MESSAGE_TEXT = 'Transaction amount must be greater than zero';
     END IF;
 END //
 DELIMITER ;
@@ -166,11 +166,11 @@ BEGIN
 END //
 DELIMITER ;
 
--- sp_get_transaction_between: get transactions between range of 2 dates
+-- sp_get_transaction_between: get transactions made by account between range of 2 dates
 DELIMITER //
 CREATE PROCEDURE sp_get_transaction_between(
     IN p_start_date DATE,
-    IN p_end_date   DATE,
+    IN p_end_date DATE,
     IN p_account_id INT
 )
 BEGIN
@@ -203,7 +203,7 @@ BEGIN
 END //
 DELIMITER ;
 
--- sp_get_transactions_on_date()
+-- sp_get_transactions_on_date(): get transactions made by account on date
 DELIMITER //
 CREATE PROCEDURE sp_get_transactions_on_date (
     IN p_date       DATE,
@@ -233,9 +233,61 @@ BEGIN
 END //
 DELIMITER ;
 
--- count_transactions_on_date: function to show count of transactions made by account on date
+-- sp_transfer() transfer funds between accounts
 DELIMITER //
-CREATE FUNCTION count_transactions_on_date(in_account_id INT, in_date DATE)
+CREATE PROCEDURE sp_transfer (
+	IN p_from_account INT,
+    IN p_to_account INT,
+    IN p_amount DECIMAL (10, 2)
+)
+BEGIN
+	DECLARE lv_found INT;
+
+	DECLARE EXIT HANDLER FOR SQLEXCEPTION
+	BEGIN
+		ROLLBACK;
+		RESIGNAL;
+	END;
+    
+     IF  p_from_account IS NULL OR p_to_account IS NULL THEN
+		SIGNAL SQLSTATE '45000'
+			SET MESSAGE_TEXT = 'Accounts cannot be null';
+    END IF;
+    
+    IF  p_from_account = p_to_account THEN
+		SIGNAL SQLSTATE '45000'
+			SET MESSAGE_TEXT = 'Cannot transfer to the same account';
+    END IF;
+    
+    IF  p_amount <= 0 THEN
+		SIGNAL SQLSTATE '45000'
+			SET MESSAGE_TEXT = 'Transfer amount must be positive';
+    END IF;
+        
+	START TRANSACTION;
+		SELECT COUNT(*) INTO lv_found
+        FROM accounts
+        WHERE id = p_from_account OR id = p_to_account
+        FOR UPDATE;
+        
+        IF lv_found <> 2 THEN
+			SIGNAL SQLSTATE '45000'
+				SET MESSAGE_TEXT = 'Source or destination account does not exist';
+		END IF;
+    
+		UPDATE accounts
+        SET balance = balance - p_amount, last_updated = NOW()
+        WHERE id = p_from_account;
+        UPDATE accounts
+        SET balance = balance + p_amount, last_updated = NOW()
+        WHERE id = p_to_account;
+    COMMIT;    
+END //
+DELIMITER ;
+
+-- fn_count_transactions_on_date: function to show count of transactions made by account on date
+DELIMITER //
+CREATE FUNCTION fn_count_transactions_on_date(in_account_id INT, in_date DATE)
 RETURNS INT
 NOT DETERMINISTIC
 READS SQL DATA
@@ -249,7 +301,6 @@ BEGIN
     RETURN lv_count;
 END //
 DELIMITER ;
-
 
 
 
