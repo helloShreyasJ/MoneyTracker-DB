@@ -19,6 +19,7 @@ DROP TABLE IF EXISTS users;
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
     name VARCHAR(50) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL
 );
 
@@ -31,11 +32,13 @@ CREATE TABLE IF NOT EXISTS accounts (
     balance DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
     last_updated TIMESTAMP NOT NULL
         DEFAULT CURRENT_TIMESTAMP,
-    type ENUM('Cash', 'Credit Card', 'Savings') NOT NULL,
+    type ENUM('Cash', 'Debit Card', 'Savings') NOT NULL,
     user_id INT NOT NULL,
     FOREIGN KEY (user_id)
         REFERENCES users (id)
 );
+
+CREATE INDEX accounts_user_idx ON accounts (user_id);
 
 -- CATEGORIES
 DROP TABLE IF EXISTS categories;
@@ -61,6 +64,10 @@ CREATE TABLE IF NOT EXISTS transactions(
         FOREIGN KEY (category_id)
             REFERENCES categories (id)
 );
+
+CREATE INDEX transactions_date_idx ON transactions (transaction_date);
+CREATE INDEX transactions_account_idx ON transactions (account_id);
+CREATE INDEX transactions_category_idx ON transactions (category_id);
 
 
 -- transaction_before_insert: before insert transaction: verify transaction
@@ -103,8 +110,6 @@ BEGIN
 	WHERE id = NEW.account_id;
 END //
 DELIMITER ;
-
--- todo: add update transaction trigger
 
 -- transaction_after_delete: after delete transaction rollback impact on account
 DELIMITER //
@@ -196,14 +201,19 @@ BEGIN
 END //
 DELIMITER ;
 
--- todo: function to show count of transactions made by account on date
--- todo: function to show balance of account on date
+-- count_transactions_on_date: function to show count of transactions made by account on date
+DELIMITER //
+CREATE FUNCTION count_transactions_on_date(in_account_id INT, in_date DATE)
+RETURNS INT
+NOT DETERMINISTIC
+READS SQL DATA
+BEGIN
+	DECLARE lv_count INT;
 
--- todo: add secondary indexes to 
-
--- call sp_get_transactions_on_date('2026-10-12', 2);
-
--- Testing
-SHOW triggers;
-SHOW PROCEDURE STATUS WHERE Db = 'MoneyTracker';
-SHOW FUNCTION STATUS WHERE Db = 'MoneyTracker';
+	SELECT COUNT(*) INTO lv_count
+	FROM transactions
+	WHERE account_id = in_account_id AND transaction_date = in_date;
+    
+    RETURN lv_count;
+END //
+DELIMITER ;
