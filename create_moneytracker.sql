@@ -1,4 +1,4 @@
-SET default_storage_engine = InnoDB;
+SET default_storage_engine = InnoDB; -- use InnoDB for referential integrity checks
 
 DROP DATABASE IF EXISTS MoneyTracker;
 
@@ -10,17 +10,19 @@ USE MoneyTracker;
 SELECT DATABASE();
 SHOW TABLES;
 
-DROP TABLE IF EXISTS users;
-
+-- USERS
 set auto_increment_offset=1;
 set auto_increment_increment=1;
+
+DROP TABLE IF EXISTS users;
 
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
     name VARCHAR(50) NOT NULL,
-    password VARCHAR(255) NOT NULL
+    password_hash VARCHAR(255) NOT NULL
 );
 
+-- ACCOUNTS
 DROP TABLE IF EXISTS accounts;
 
 CREATE TABLE IF NOT EXISTS accounts (
@@ -35,6 +37,7 @@ CREATE TABLE IF NOT EXISTS accounts (
         REFERENCES users (id)
 );
 
+-- CATEGORIES
 DROP TABLE IF EXISTS categories;
 
 CREATE TABLE IF NOT EXISTS categories(
@@ -43,6 +46,7 @@ CREATE TABLE IF NOT EXISTS categories(
     category_type ENUM ('Expense', 'Income') NOT NULL
 );
 
+-- TRANSACTIONS
 DROP TABLE IF EXISTS transactions;
 
 CREATE TABLE IF NOT EXISTS transactions(
@@ -58,7 +62,8 @@ CREATE TABLE IF NOT EXISTS transactions(
             REFERENCES categories (id)
 );
 
--- before insert transaction: verify transaction
+
+-- transaction_before_insert: before insert transaction: verify transaction
 DELIMITER //
 CREATE TRIGGER transaction_before_insert
 BEFORE INSERT ON transactions
@@ -76,7 +81,7 @@ BEGIN
 END //
 DELIMITER ;
 
--- after insert transaction: update balance, update last_updated field 
+-- transaction_after_insert: update balance, update last_updated field 
 DELIMITER //
 CREATE TRIGGER transaction_after_insert
 AFTER INSERT ON transactions
@@ -99,8 +104,9 @@ BEGIN
 END //
 DELIMITER ;
 
+-- todo: add update transaction trigger
 
--- after delete transaction rollback impact on account
+-- transaction_after_delete: after delete transaction rollback impact on account
 DELIMITER //
 CREATE TRIGGER transaction_after_delete
 AFTER DELETE ON transactions
@@ -152,9 +158,10 @@ BEGIN
                ELSE 0
            END AS signed_amount
     FROM transactions t
-    JOIN categories c ON c.id = t.category_id
-    WHERE t.transaction_date BETWEEN p_start_date AND p_end_date
-      AND (p_account_id IS NULL OR t.account_id = p_account_id)
+    JOIN categories c
+    ON c.id = t.category_id
+    WHERE t.transaction_date BETWEEN p_start_date AND p_end_date 
+    AND (p_account_id IS NULL OR t.account_id = p_account_id)
     ORDER BY t.transaction_date, t.id;
 END //
 DELIMITER ;
@@ -171,7 +178,7 @@ BEGIN
             SET MESSAGE_TEXT = 'Date is required';
     END IF;
 
-    SELECT t.id,
+    SELECT t.id AS transaction_id,
            t.account_id,
            t.transaction_date,
            c.category_type,
@@ -181,15 +188,22 @@ BEGIN
                WHEN 'Expense' THEN -t.amount
                ELSE 0
            END AS signed_amount
-    FROM transactions t
-    JOIN categories c ON c.id = t.category_id
-    WHERE t.transaction_date = p_date
-   	AND (p_account_id IS NULL OR t.account_id = p_account_id)
-    ORDER BY t.id;
+	FROM transactions t
+	JOIN categories c
+	ON c.id = t.category_id
+	WHERE t.transaction_date = p_date AND (p_account_id IS NULL OR t.account_id = p_account_id)
+	ORDER BY t.transaction_date, t.id;
 END //
 DELIMITER ;
 
+-- todo: function to show count of transactions made by account on date
+-- todo: function to show balance of account on date
+
+-- todo: add secondary indexes to 
+
+-- call sp_get_transactions_on_date('2026-10-12', 2);
+
 -- Testing
 SHOW triggers;
--- SHOW PROCEDURE STATUS WHERE Db = 'MoneyTracker';
--- SHOW FUNCTION STATUS WHERE Db = 'MoneyTracker';
+SHOW PROCEDURE STATUS WHERE Db = 'MoneyTracker';
+SHOW FUNCTION STATUS WHERE Db = 'MoneyTracker';
