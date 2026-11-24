@@ -69,7 +69,6 @@ CREATE INDEX transactions_date_idx ON transactions (transaction_date);
 CREATE INDEX transactions_account_idx ON transactions (account_id);
 CREATE INDEX transactions_category_idx ON transactions (category_id);
 
-
 -- transaction_before_insert: before insert transaction: verify transaction
 DELIMITER //
 CREATE TRIGGER transaction_before_insert
@@ -81,7 +80,7 @@ BEGIN
             SET MESSAGE_TEXT = 'Transaction date cannot be in the future';
 	END IF;
 
-	IF NEW.amount IS NULL OR NEW.amount <= 0 THEN
+	IF NEW.amount <= 0 THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Transaction amount must be greater than zero';
     END IF;
@@ -97,9 +96,9 @@ BEGIN
 	DECLARE lv_cat_type VARCHAR(10);
 
 	SELECT category_type INTO lv_cat_type
-    FROM categories
-    WHERE id = NEW.category_id;
-	
+	FROM categories
+	WHERE id = NEW.category_id;
+
 	UPDATE accounts
 	SET balance = CASE
 		WHEN lv_cat_type = 'Income' THEN balance + NEW.amount
@@ -107,6 +106,39 @@ BEGIN
 		ELSE balance
 	END,
 	last_updated = NOW()
+	WHERE id = NEW.account_id;
+END //
+DELIMITER ;
+
+-- transaction_after_update: correct account balance after existing transaction updated
+DELIMITER //
+CREATE TRIGGER transaction_after_update
+AFTER UPDATE ON transactions
+FOR EACH ROW
+BEGIN
+	DECLARE lv_old_type VARCHAR(10);
+	DECLARE lv_new_type VARCHAR(10);
+
+	SELECT category_type INTO lv_old_type
+	FROM categories WHERE id = OLD.category_id;
+
+	SELECT category_type INTO lv_new_type
+	FROM categories WHERE id = NEW.category_id;
+
+	 UPDATE accounts
+	SET balance = CASE
+		WHEN lv_old_type = 'Income'  THEN balance - OLD.amount
+		WHEN lv_old_type = 'Expense' THEN balance + OLD.amount
+	END,
+	last_updated = NOW()
+	WHERE id = OLD.account_id;
+
+	UPDATE accounts
+	SET balance = CASE
+			WHEN lv_new_type = 'Income'  THEN balance + NEW.amount
+			WHEN lv_new_type = 'Expense' THEN balance - NEW.amount
+		END,
+		last_updated = NOW()
 	WHERE id = NEW.account_id;
 END //
 DELIMITER ;
@@ -217,3 +249,7 @@ BEGIN
     RETURN lv_count;
 END //
 DELIMITER ;
+
+
+
+
