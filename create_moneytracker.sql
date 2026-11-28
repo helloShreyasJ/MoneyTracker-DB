@@ -62,7 +62,8 @@ CREATE TABLE IF NOT EXISTS transactions(
         FOREIGN KEY (account_id)
             REFERENCES accounts (id),
         FOREIGN KEY (category_id)
-            REFERENCES categories (id)
+            REFERENCES categories (id),
+		CONSTRAINT chk_transaction_amount CHECK (amount > 0)
 );
 
 CREATE INDEX transactions_date_idx ON transactions (transaction_date);
@@ -110,6 +111,19 @@ BEGIN
 END //
 DELIMITER ;
 
+-- transaction_before_update: throw error if updated transaction date is in future
+DELIMITER //
+CREATE TRIGGER transaction_before_update
+BEFORE UPDATE ON transactions
+FOR EACH ROW
+BEGIN
+	IF NEW.transaction_date > CURDATE() THEN
+		SIGNAL SQLSTATE '45000'
+			SET MESSAGE_TEXT = 'Transaction date cannot be in the future' ;
+	END IF ;
+END //
+DELIMITER ;
+
 -- transaction_after_update: correct account balance after existing transaction updated
 DELIMITER //
 CREATE TRIGGER transaction_after_update
@@ -125,7 +139,7 @@ BEGIN
 	SELECT category_type INTO lv_new_type
 	FROM categories WHERE id = NEW.category_id;
 
-	 UPDATE accounts
+	UPDATE accounts
 	SET balance = CASE
 		WHEN lv_old_type = 'Income'  THEN balance - OLD.amount
 		WHEN lv_old_type = 'Expense' THEN balance + OLD.amount
@@ -135,10 +149,10 @@ BEGIN
 
 	UPDATE accounts
 	SET balance = CASE
-			WHEN lv_new_type = 'Income'  THEN balance + NEW.amount
-			WHEN lv_new_type = 'Expense' THEN balance - NEW.amount
-		END,
-		last_updated = NOW()
+		WHEN lv_new_type = 'Income'  THEN balance + NEW.amount
+		WHEN lv_new_type = 'Expense' THEN balance - NEW.amount
+	END,
+	last_updated = NOW()
 	WHERE id = NEW.account_id;
 END //
 DELIMITER ;
@@ -301,6 +315,5 @@ BEGIN
     RETURN lv_count;
 END //
 DELIMITER ;
-
 
 
